@@ -10,17 +10,13 @@ let config = GenerationConfig(
     responseMIMEType: "text/plain" // Plain text response format
 )
 
-// Secure way to store API key (replace with actual instructions)
-// Secure way to store API key (replace with fatalError with actual logic)
+// Secure way to store API key (replace with actual logic)
 func getApiKey() -> String {
     guard let apiKey = ProcessInfo.processInfo.environment["GEMINI_API_KEY"] else {
         fatalError("GEMINI_API_KEY environment variable not set!")
     }
     return apiKey
 }
-
-
-
 
 let apiKey = getApiKey() // Placeholder for secure retrieval
 
@@ -50,40 +46,225 @@ func sendUserMessage(_ message: String) async throws -> String {
     return response.text ?? "No response received"
 }
 
+struct Message: Identifiable, Equatable {
+    let id = UUID()
+    var text: String
+    let isUser: Bool
+    let timestamp: Date
+}
+
 struct ContentView: View {
     @State private var userInput = ""  // State variable for user input
-    @State private var conversationHistory = [String]() // Array to store chat history
+    @State private var conversationHistory = [Message]() // Array to store chat history
+    @State private var editingMessage: Message? // Message being edited
+    @State private var backgroundColor = Color.white // Background color state
+    @State private var textSize: CGFloat = 14 // Text size state
+    @State private var isBold = false // Text style state
+    @State private var isItalic = false // Text style state
+    @State private var textAlignment: TextAlignment = .leading // Text alignment state
 
     var body: some View {
         VStack {
             // Display chat history
             ScrollView {
-                ForEach(conversationHistory, id: \.self) { message in
-                    Text(message)
-                        .foregroundColor(.black) // Customize message color
+                ForEach(conversationHistory) { message in
+                    VStack(alignment: message.isUser ? .trailing : .leading, spacing: 5) {
+                        HStack {
+                            if message.isUser {
+                                Spacer()
+                            }
+                            Text(message.text)
+                                .padding()
+                                .background(message.isUser ? Color.blue.opacity(0.7) : Color.gray.opacity(0.7))
+                                .foregroundColor(.white)
+                                .cornerRadius(15)
+                                .contextMenu {
+                                    Button(action: {
+                                        UIPasteboard.general.string = message.text
+                                    }) {
+                                        Label("Copy", systemImage: "doc.on.doc")
+                                    }
+                                    if message.isUser {
+                                        Button(action: {
+                                            editingMessage = message
+                                            userInput = message.text
+                                        }) {
+                                            Label("Edit", systemImage: "pencil")
+                                        }
+                                        Button(action: {
+                                            withAnimation {
+                                                conversationHistory.removeAll { $0.id == message.id }
+                                            }
+                                        }) {
+                                            Label("Delete", systemImage: "trash")
+                                        }
+                                    }
+                                }
+                            if !message.isUser {
+                                Spacer()
+                            }
+                        }
+                        Text(message.timestamp, style: .time)
+                            .font(.footnote)
+                            .foregroundColor(.gray)
+                    }
+                    .padding(message.isUser ? .leading : .trailing, 60)
+                    .padding(.vertical, 2)
                 }
             }
+            .background(backgroundColor)
+            .textCase(isBold ? .uppercase : .lowercase)
+            .font(isItalic ? .system(size: textSize, weight: .bold, design: .default).italic() : .system(size: textSize))
+            .multilineTextAlignment(textAlignment)
 
             // Text field for user input
-            TextField("Enter your message", text: $userInput)
-                .onSubmit {
+            HStack {
+                TextField("Enter your message", text: $userInput)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .padding()
+                Button(action: {
                     Task {
-                        conversationHistory.append(userInput) // Add user input to history
-                        let response = try? await sendUserMessage(userInput)
-                        conversationHistory.append(response ?? "No response received")
+                        guard !userInput.isEmpty else { return }
+                        if let editingMessage = editingMessage {
+                            if let index = conversationHistory.firstIndex(where: { $0.id == editingMessage.id }) {
+                                conversationHistory[index].text = userInput
+                            }
+                            self.editingMessage = nil
+                        } else {
+                            let userMessage = Message(text: userInput, isUser: true, timestamp: Date())
+                            withAnimation {
+                                conversationHistory.append(userMessage) // Add user input to history
+                            }
+                            let responseText = try? await sendUserMessage(userInput)
+                            let botMessage = Message(text: responseText ?? "No response received", isUser: false, timestamp: Date())
+                            withAnimation {
+                                conversationHistory.append(botMessage)
+                            }
+                        }
                         userInput = "" // Clear input field for next message
                     }
+                }) {
+                    Image(systemName: "paperplane.fill")
+                        .foregroundColor(.white)
+                        .padding()
+                        .background(Color.blue)
+                        .clipShape(Circle())
                 }
+                .padding(.trailing)
+            }
+            .padding(.bottom, 10)
+
+            // Customization options
+            VStack {
+                HStack {
+                    Button(action: {
+                        backgroundColor = .yellow
+                    }) {
+                        Text("Background Yellow")
+                            .padding()
+                            .background(Color.yellow)
+                            .cornerRadius(8)
+                            .foregroundColor(.black)
+                    }
+                    Button(action: {
+                        backgroundColor = .white
+                    }) {
+                        Text("Background White")
+                            .padding()
+                            .background(Color.white)
+                            .cornerRadius(8)
+                            .foregroundColor(.black)
+                    }
+                }
+                HStack {
+                    Slider(value: $textSize, in: 10...24, step: 1) {
+                        Text("Text Size")
+                    }
+                    .padding()
+                    Toggle("Bold", isOn: $isBold)
+                        .padding()
+                    Toggle("Italic", isOn: $isItalic)
+                        .padding()
+                }
+                HStack {
+                    Button(action: {
+                        textAlignment = .leading
+                    }) {
+                        Text("Align Left")
+                            .padding()
+                            .background(Color.gray.opacity(0.3))
+                            .cornerRadius(8)
+                    }
+                    Button(action: {
+                        textAlignment = .center
+                    }) {
+                        Text("Align Center")
+                            .padding()
+                            .background(Color.gray.opacity(0.3))
+                            .cornerRadius(8)
+                    }
+                    Button(action: {
+                        textAlignment = .trailing
+                    }) {
+                        Text("Align Right")
+                            .padding()
+                            .background(Color.gray.opacity(0.3))
+                            .cornerRadius(8)
+                    }
+                }
+                HStack {
+                    Button(action: {
+                        saveConversation()
+                    }) {
+                        Text("Save Conversation")
+                            .padding()
+                            .background(Color.green)
+                            .cornerRadius(8)
+                            .foregroundColor(.white)
+                    }
+                    Button(action: {
+                        loadConversation()
+                    }) {
+                        Text("Load Conversation")
+                            .padding()
+                            .background(Color.orange)
+                            .cornerRadius(8)
+                            .foregroundColor(.white)
+                    }
+                    Button(action: {
+                        withAnimation {
+                            conversationHistory.removeAll()
+                        }
+                    }) {
+                        Text("Clear Chat")
+                            .padding()
+                            .background(Color.red)
+                            .cornerRadius(8)
+                            .foregroundColor(.white)
+                    }
+                }
+            }
+            .padding()
         }
         .padding()
         .onAppear { // Start chat on view appearance
             startChat()
         }
     }
+
+    func saveConversation() {
+        // Implement saving conversation to a file
+        // This is a placeholder function
+    }
+
+    func loadConversation() {
+        // Implement loading conversation from a file
+        // This is a placeholder function
+    }
 }
 
 struct ContentView_Previews: PreviewProvider {
-    static var previews: some View {
+    static var previews: ContentView {
         ContentView()
     }
 }
