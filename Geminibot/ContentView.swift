@@ -64,99 +64,150 @@ struct ContentView: View {
     @State private var textAlignment: TextAlignment = .leading // Text alignment state
 
     var body: some View {
-        VStack {
-            // Display chat history
-            ScrollView {
-                ForEach(conversationHistory) { message in
-                    VStack(alignment: message.isUser ? .trailing : .leading, spacing: 5) {
-                        HStack {
-                            if message.isUser {
-                                Spacer()
-                            }
-                            Text(message.text)
-                                .padding()
-                                .background(message.isUser ? Color.blue.opacity(0.7) : Color.gray.opacity(0.7))
-                                .foregroundColor(.white)
-                                .cornerRadius(15)
-                                .contextMenu {
-                                    Button(action: {
-                                        UIPasteboard.general.string = message.text
-                                    }) {
-                                        Label("Copy", systemImage: "doc.on.doc")
-                                    }
-                                    if message.isUser {
-                                        Button(action: {
-                                            editingMessage = message
-                                            userInput = message.text
-                                        }) {
-                                            Label("Edit", systemImage: "pencil")
-                                        }
-                                        Button(action: {
-                                            withAnimation {
-                                                conversationHistory.removeAll { $0.id == message.id }
-                                            }
-                                        }) {
-                                            Label("Delete", systemImage: "trash")
-                                        }
-                                    }
-                                }
-                            if !message.isUser {
-                                Spacer()
-                            }
-                        }
-                        Text(message.timestamp, style: .time)
-                            .font(.footnote)
-                            .foregroundColor(.gray)
-                    }
-                    .padding(message.isUser ? .leading : .trailing, 60)
-                    .padding(.vertical, 2)
-                }
-            }
-            .background(backgroundColor)
-            .textCase(isBold ? .uppercase : .lowercase)
-            .font(isItalic ? .system(size: textSize, weight: .bold, design: .default).italic() : .system(size: textSize))
-            .multilineTextAlignment(textAlignment)
-
-            // Text field for user input
-            HStack {
-                TextField("Enter your message", text: $userInput)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .padding()
-                Button(action: {
-                    Task {
-                        guard !userInput.isEmpty else { return }
-                        if let editingMessage = editingMessage {
-                            if let index = conversationHistory.firstIndex(where: { $0.id == editingMessage.id }) {
-                                conversationHistory[index].text = userInput
-                            }
-                            self.editingMessage = nil
-                        } else {
-                            let userMessage = Message(text: userInput, isUser: true, timestamp: Date())
-                            withAnimation {
-                                conversationHistory.append(userMessage) // Add user input to history
-                            }
-                            let responseText = try? await sendUserMessage(userInput)
-                            let botMessage = Message(text: responseText ?? "No response received", isUser: false, timestamp: Date())
-                            withAnimation {
-                                conversationHistory.append(botMessage)
-                            }
-                        }
-                        userInput = "" // Clear input field for next message
-                    }
-                }) {
-                    Image(systemName: "paperplane.fill")
-                        .foregroundColor(.white)
-                        .padding()
-                        .background(Color.blue)
-                        .clipShape(Circle())
-                }
-                .padding(.trailing)
-            }
-            .padding(.bottom, 10)
-
-            // Customization options
+        NavigationView{
+            
+            
             VStack {
+                // Display chat history
+                ScrollView {
+                    ForEach(conversationHistory) { message in
+                        VStack(alignment: message.isUser ? .trailing : .leading, spacing: 5) {
+                            HStack {
+                                if message.isUser {
+                                    Spacer()
+                                }
+                                Text(message.text)
+                                    .padding()
+                                    .background(message.isUser ? Color.blue.opacity(0.7) : Color.gray.opacity(0.7))
+                                    .foregroundColor(.white)
+                                    .cornerRadius(15)
+                                    .contextMenu {
+                                        Button(action: {
+                                            UIPasteboard.general.string = message.text
+                                        }) {
+                                            Label("Copy", systemImage: "doc.on.doc")
+                                        }
+                                        if message.isUser {
+                                            Button(action: {
+                                                editingMessage = message
+                                                userInput = message.text
+                                            }) {
+                                                Label("Edit", systemImage: "pencil")
+                                            }
+                                            Button(action: {
+                                                withAnimation {
+                                                    conversationHistory.removeAll { $0.id == message.id }
+                                                }
+                                            }) {
+                                                Label("Delete", systemImage: "trash")
+                                            }
+                                        }
+                                    }
+                                if !message.isUser {
+                                    Spacer()
+                                }
+                            }
+                            Text(message.timestamp, style: .time)
+                                .font(.footnote)
+                                .foregroundColor(.gray)
+                        }
+                        .padding(message.isUser ? .leading : .trailing, 60)
+                        .padding(.vertical, 2)
+                    }
+                }
+                .background(backgroundColor)
+                .textCase(isBold ? .uppercase : .lowercase)
+                .font(isItalic ? .system(size: textSize, weight: .bold, design: .default).italic() : .system(size: textSize))
+                .multilineTextAlignment(textAlignment)
+                
+                // Text field for user input
                 HStack {
+                    TextField("Enter your message", text: $userInput)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .padding()
+                    Button(action: {
+                        Task {
+                            guard !userInput.isEmpty else { return }
+                            if let editingMessage = editingMessage {
+                                if let index = conversationHistory.firstIndex(where: { $0.id == editingMessage.id }) {
+                                    conversationHistory[index].text = userInput
+                                }
+                                self.editingMessage = nil
+                            } else {
+                                let userMessage = Message(text: userInput, isUser: true, timestamp: Date())
+                                withAnimation {
+                                    conversationHistory.append(userMessage) // Add user input to history
+                                }
+                                let responseText = try? await sendUserMessage(userInput)
+                                let botMessage = Message(text: responseText ?? "No response received", isUser: false, timestamp: Date())
+                                withAnimation {
+                                    conversationHistory.append(botMessage)
+                                }
+                            }
+                            userInput = "" // Clear input field for next message
+                        }
+                    }) {
+                        Image(systemName: "paperplane.fill")
+                            .foregroundColor(.white)
+                            .padding()
+                            .background(Color.blue)
+                            .clipShape(Circle())
+                    }
+                    .padding(.trailing)
+                }
+                .padding(.bottom, 10)
+                
+                // Customization options
+                NavigationLink(destination: SettingsView(backgroundColor: $backgroundColor,textSize: $textSize,
+                                                         isBold: $isBold,
+                                                         isItalic: $isItalic,
+                                                         textAlignment: $textAlignment)) {
+                    Text("Settings")
+                        .padding()
+                        .background(Color.green)
+                        .foregroundColor(.white)
+                        .cornerRadius(8)
+                }
+                                                         .padding()
+                
+                
+            }
+            .padding()
+            .onAppear { // Start chat on view appearance
+                startChat()
+            }
+        }
+    }
+    func saveConversation() {
+        // Implement saving conversation to a file
+        // This is a placeholder function
+    }
+
+    func loadConversation() {
+        // Implement loading conversation from a file
+        // This is a placeholder function
+    }
+}
+
+struct ContentView_Previews: PreviewProvider {
+    static var previews: some View {
+        ContentView()
+    }
+}
+
+
+struct SettingsView: View {
+    @Environment(\.presentationMode) var presentationMode
+    @Binding var backgroundColor: Color
+    @Binding var textSize: CGFloat
+    @Binding var isBold: Bool
+    @Binding var isItalic: Bool
+    @Binding var textAlignment: TextAlignment
+
+    var body: some View {
+        NavigationView {
+            VStack {
+                VStack {
                     Button(action: {
                         backgroundColor = .yellow
                     }) {
@@ -212,59 +263,21 @@ struct ContentView: View {
                             .cornerRadius(8)
                     }
                 }
-                HStack {
-                    Button(action: {
-                        saveConversation()
-                    }) {
-                        Text("Save Conversation")
-                            .padding()
-                            .background(Color.green)
-                            .cornerRadius(8)
-                            .foregroundColor(.white)
-                    }
-                    Button(action: {
-                        loadConversation()
-                    }) {
-                        Text("Load Conversation")
-                            .padding()
-                            .background(Color.orange)
-                            .cornerRadius(8)
-                            .foregroundColor(.white)
-                    }
-                    Button(action: {
-                        withAnimation {
-                            conversationHistory.removeAll()
-                        }
-                    }) {
-                        Text("Clear Chat")
-                            .padding()
-                            .background(Color.red)
-                            .cornerRadius(8)
-                            .foregroundColor(.white)
-                    }
-                }
             }
             .padding()
+            .navigationBarTitle("Settings")
+            .navigationBarItems(trailing: Button("Done") {
+                presentationMode.wrappedValue.dismiss()
+            })
         }
-        .padding()
-        .onAppear { // Start chat on view appearance
-            startChat()
-        }
-    }
-
-    func saveConversation() {
-        // Implement saving conversation to a file
-        // This is a placeholder function
-    }
-
-    func loadConversation() {
-        // Implement loading conversation from a file
-        // This is a placeholder function
     }
 }
 
-struct ContentView_Previews: PreviewProvider {
-    static var previews: ContentView {
-        ContentView()
-    }
-}
+
+//                            struct ContentView_Previews: PreviewProvider {
+//                            static var previews: some View {
+//                            ContentView()
+//                            }
+//                            }
+
+
