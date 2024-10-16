@@ -25,10 +25,10 @@ GeminiBot is an AI-powered chatbot built using the Gemini API. It offers intelli
 - Access to the Gemini API
 
 ## Installation
-
+https://github.com/jigardave8/Geminibot1.git
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/geminibot.git
+   git clone https://github.com/jigardave8/Geminibot1.git
    ```
 2. Open the project in Xcode:
    ```bash
